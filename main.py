@@ -15,9 +15,12 @@ from tqdm import tqdm
 
 
 def list_object_versions(
-        object_storage_client: ObjectStorageClient, bucket_name: str, namespace: str
+        object_storage_client: ObjectStorageClient,
+        bucket_name: str,
+        namespace: str,
+        prefix: str | None = None,
 ) -> list[ObjectVersionSummary]:
-    """List all object versions in a bucket with pagination"""
+    """List all object versions in a bucket with pagination, optionally filtered by prefix"""
     try:
         all_objects: list[ObjectVersionSummary] = []
         next_page = None
@@ -28,6 +31,7 @@ def list_object_versions(
                 bucket_name=bucket_name,
                 page=next_page,
                 limit=1000,
+                prefix=prefix,
             )
 
             if response.data.items:
@@ -666,6 +670,26 @@ def delete_log_analytics_entity_worker(
 
         except Empty:
             break
+
+@cli.command(name="list-bucket-objects")
+@click.option(
+    "--oci-profile", required=True, help="OCI profile to use from the config file"
+)
+@click.option("--bucket-name", required=True, help="Name of the OCI bucket to list")
+@click.option("--prefix", default=None, help="Filter objects by name prefix")
+def list_bucket_objects(oci_profile: str, bucket_name: str, prefix: str | None):
+    """List all object versions in an OCI bucket"""
+    config = oci.config.from_file(profile_name=oci_profile)
+    object_storage_client: ObjectStorageClient = oci.object_storage.ObjectStorageClient(
+        config
+    )
+    namespace: str = object_storage_client.get_namespace().data
+
+    objects = list_object_versions(object_storage_client, bucket_name, namespace, prefix)
+    for obj in objects:
+        print(f"  {obj.name}  version={obj.version_id}  size={obj.size}")
+    print(f"Found {len(objects)} object version(s) in bucket '{bucket_name}':")
+
 
 @cli.command(name="clean-bucket")
 @click.option(
