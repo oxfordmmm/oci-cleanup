@@ -247,6 +247,68 @@ def delete_object_worker(
             break
 
 
+def clean_object_versions_by_prefix(
+        object_storage_client: ObjectStorageClient,
+        bucket_name: str,
+        namespace: str,
+        prefix: str,
+        num_workers: int = 1,
+) -> bool:
+    """Delete object versions whose names start with the given prefix."""
+    print(
+        f"\nDeleting object versions in bucket '{bucket_name}' "
+        f"with prefix '{prefix}'"
+    )
+
+    if not verify_bucket_exists(object_storage_client, namespace, bucket_name):
+        return False
+
+    objects: list[ObjectVersionSummary] = list_object_versions(
+        object_storage_client, bucket_name, namespace, prefix
+    )
+
+    if not objects:
+        print(
+            f"No object versions found with prefix '{prefix}' "
+            f"in bucket '{bucket_name}'"
+        )
+        return True
+
+    object_queue: Queue[ObjectVersionSummary] = Queue()
+    progress_lock = Lock()
+    print(f"Running with {num_workers} workers")
+
+    with tqdm(
+            total=len(objects),
+            desc=f"Deleting object versions in {bucket_name}",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
+            leave=False,
+    ) as obj_pbar:
+        for item in objects:
+            object_queue.put(item)
+
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            futures = [
+                executor.submit(
+                    delete_object_worker,
+                    object_storage_client,
+                    namespace,
+                    bucket_name,
+                    object_queue,
+                    progress_lock,
+                    obj_pbar,
+                )
+                for _ in range(num_workers)
+            ]
+
+            for future in futures:
+                future.result()
+
+            object_queue.join()
+
+    return True
+
+
 def clean_up_bucket(
         object_storage_client: ObjectStorageClient,
         bucket_name: str,
@@ -689,6 +751,41 @@ def list_bucket_objects(oci_profile: str, bucket_name: str, prefix: str | None):
     for obj in objects:
         print(f"  {obj.name}  version={obj.version_id}  size={obj.size}")
     print(f"Found {len(objects)} object version(s) in bucket '{bucket_name}':")
+
+
+@cli.command(name="clean-object-versions")
+@click.option(
+    "--oci-profile", required=True, help="OCI profile to use from the config file"
+)
+@click.option("--bucket-name", required=True, help="Name of the OCI bucket")
+@click.option(
+    "--prefix",
+    required=True,
+    help="Only delete object versions whose names start with this prefix",
+)
+@click.option(
+    "--workers",
+    type=int,
+    default=1,
+    help="Number of worker threads for parallel processing",
+)
+def clean_object_versions(
+        oci_profile: str, bucket_name: str, prefix: str, workers: int
+):
+    """Delete object versions in a bucket that match a name prefix."""
+    config = oci.config.from_file(profile_name=oci_profile)
+    object_storage_client: ObjectStorageClient = oci.object_storage.ObjectStorageClient(
+        config
+    )
+    namespace: str = object_storage_client.get_namespace().data
+
+    clean_object_versions_by_prefix(
+        object_storage_client,
+        bucket_name,
+        namespace,
+        prefix,
+        num_workers=workers,
+    )
 
 
 @cli.command(name="clean-bucket")
