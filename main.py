@@ -9,9 +9,43 @@ from oci.artifacts import ArtifactsClient
 from oci.log_analytics import LogAnalyticsClient
 from oci.log_analytics.models import LogAnalyticsEntitySummary
 from oci.object_storage import ObjectStorageClient
-from oci.object_storage.models import ObjectVersionSummary, MultipartUploadPartSummary
+from oci.object_storage.models import ObjectSummary, ObjectVersionSummary, MultipartUploadPartSummary
 from tenacity import retry, stop_after_attempt, wait_fixed
 from tqdm import tqdm
+
+
+def list_objects(
+    object_storage_client: ObjectStorageClient,
+    bucket_name: str,
+    namespace: str,
+    prefix: str | None = None,
+) -> list[ObjectSummary]:
+    """List all objects in a bucket with pagination (current versions only)."""
+    try:
+        all_objects: list[ObjectSummary] = []
+        start_with: str | None = None
+
+        while True:
+            response = object_storage_client.list_objects(
+                namespace_name=namespace,
+                bucket_name=bucket_name,
+                prefix=prefix,
+                start=start_with,
+                limit=1000,
+            )
+
+            if response.data.objects:
+                all_objects.extend(response.data.objects)
+
+            # list_objects uses start-based pagination
+            start_with = response.data.next_start_with
+            if not start_with:
+                break
+
+        return all_objects
+    except Exception as e:
+        print(f"Error listing objects: {e}")
+        return []
 
 
 def list_object_versions(
