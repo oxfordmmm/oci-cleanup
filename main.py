@@ -142,8 +142,6 @@ def clean_bucket(
     oci_profile: str,
     bucket_name: str,
     bucket_file: str,
-    max_retries: str,
-    retry_delay: str,
     delete_bucket: bool,
     workers: int,
 ):
