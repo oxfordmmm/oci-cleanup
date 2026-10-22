@@ -142,7 +142,7 @@ def clean_up_bucket(
             bucket_pbar.update(1)
         return False
 
-    # Get list of object versions
+    # Get a list of object versions
     objects: list[ObjectVersionSummary] = list_object_versions(
         object_storage_client, bucket_name, namespace
     )
@@ -150,12 +150,12 @@ def clean_up_bucket(
     if not objects:
         print(f"No objects found in bucket '{bucket_name}'")
     else:
-        # Create queue and progress bar for object deletion
+        # Create a queue and progress bar for object deletion
         object_queue: Queue[ObjectVersionSummary] = Queue()
         progress_lock = Lock()
         print(f"Running with {num_workers} workers")
 
-        # Create progress bar with percentage format
+        # Create a progress bar with a percentage format
         with tqdm(
             total=len(objects),
             desc=f"Deleting objects in {bucket_name}",
@@ -186,7 +186,7 @@ def clean_up_bucket(
                 for future in futures:
                     future.result()
 
-                # Wait for queue to be empty
+                # Wait for the queue to be empty
                 object_queue.join()
 
     # Delete all preauthenticated requests
@@ -194,7 +194,7 @@ def clean_up_bucket(
     if pars:
         with tqdm(
             total=len(pars),
-            desc=f"Deleting preauthenticated requests in {bucket_name}",
+            desc=f"Deleting pre-authenticated requests in {bucket_name}",
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
             leave=False,
         ) as par_pbar:
@@ -212,7 +212,7 @@ def clean_up_bucket(
 
                 par_pbar.update(1)
     else:
-        print(f"No preauthenticated requests found in bucket '{bucket_name}'")
+        print(f"No pre-authenticated requests found in bucket '{bucket_name}'")
 
     # Abort all multipart uploads
     multipart_uploads = list_multipart_uploads(
@@ -274,7 +274,7 @@ def clean_up_buckets_from_file(
         config
     )
 
-    # Read bucket names from file
+    # Read bucket names from a file
     try:
         with open(bucket_file, "r") as f:
             buckets = [line.strip() for line in f if line.strip()]
@@ -291,7 +291,7 @@ def clean_up_buckets_from_file(
 
     print(f"\nStarting cleanup of {len(buckets)} buckets...")
 
-    # Create progress bar for buckets
+    # Create a progress bar for buckets
     with tqdm(total=len(buckets), desc="Overall progress", position=0) as bucket_pbar:
         for bucket_name in buckets:
             clean_up_bucket(
