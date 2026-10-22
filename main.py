@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from queue import Queue, Empty
+from queue import Empty, Queue
 from threading import Lock
 
 import click
@@ -9,7 +9,11 @@ from oci.artifacts import ArtifactsClient
 from oci.log_analytics import LogAnalyticsClient
 from oci.log_analytics.models import LogAnalyticsEntitySummary
 from oci.object_storage import ObjectStorageClient
-from oci.object_storage.models import ObjectSummary, ObjectVersionSummary, MultipartUploadPartSummary
+from oci.object_storage.models import (
+    MultipartUploadPartSummary,
+    ObjectSummary,
+    ObjectVersionSummary,
+)
 from tenacity import retry, stop_after_attempt, wait_fixed
 from tqdm import tqdm
 
@@ -49,10 +53,10 @@ def list_objects(
 
 
 def list_object_versions(
-        object_storage_client: ObjectStorageClient,
-        bucket_name: str,
-        namespace: str,
-        prefix: str | None = None,
+    object_storage_client: ObjectStorageClient,
+    bucket_name: str,
+    namespace: str,
+    prefix: str | None = None,
 ) -> list[ObjectVersionSummary]:
     """List all object versions in a bucket with pagination, optionally filtered by prefix"""
     try:
@@ -84,11 +88,11 @@ def list_object_versions(
 
 @retry(stop=stop_after_attempt(4), wait=wait_fixed(10))
 def delete_object_with_retry(
-        object_storage_client: ObjectStorageClient,
-        namespace: str,
-        bucket_name: str,
-        object_name: str,
-        version_id: str,
+    object_storage_client: ObjectStorageClient,
+    namespace: str,
+    bucket_name: str,
+    object_name: str,
+    version_id: str,
 ):
     """Delete an object version with retry mechanism"""
     return object_storage_client.delete_object(
@@ -101,7 +105,7 @@ def delete_object_with_retry(
 
 @retry(stop=stop_after_attempt(4), wait=wait_fixed(10))
 def delete_bucket_with_retry(
-        object_storage_client: ObjectStorageClient, namespace: str, bucket_name: str
+    object_storage_client: ObjectStorageClient, namespace: str, bucket_name: str
 ):
     """Delete a bucket with retry mechanism"""
     try:
@@ -121,7 +125,7 @@ def delete_bucket_with_retry(
 
 
 def verify_bucket_exists(
-        object_storage_client: ObjectStorageClient, namespace: str, bucket_name: str
+    object_storage_client: ObjectStorageClient, namespace: str, bucket_name: str
 ):
     """Verify if a bucket exists"""
     try:
@@ -138,7 +142,7 @@ def verify_bucket_exists(
 
 
 def list_preauthenticated_requests(
-        object_storage_client: ObjectStorageClient, namespace: str, bucket_name: str
+    object_storage_client: ObjectStorageClient, namespace: str, bucket_name: str
 ):
     """List all preauthenticated requests in a bucket with pagination"""
     try:
@@ -171,10 +175,10 @@ def list_preauthenticated_requests(
 
 @retry(stop=stop_after_attempt(4), wait=wait_fixed(10))
 def delete_par_with_retry(
-        object_storage_client: ObjectStorageClient,
-        namespace: str,
-        bucket_name: str,
-        par_id: str,
+    object_storage_client: ObjectStorageClient,
+    namespace: str,
+    bucket_name: str,
+    par_id: str,
 ):
     """Delete a preauthenticated request with retry mechanism"""
     try:
@@ -188,7 +192,7 @@ def delete_par_with_retry(
 
 
 def list_multipart_uploads(
-        object_storage_client: ObjectStorageClient, namespace: str, bucket_name: str
+    object_storage_client: ObjectStorageClient, namespace: str, bucket_name: str
 ) -> list[MultipartUploadPartSummary]:
     """List all multipart uploads in a bucket with pagination"""
     try:
@@ -219,11 +223,11 @@ def list_multipart_uploads(
 
 @retry(stop=stop_after_attempt(4), wait=wait_fixed(10))
 def abort_multipart_upload_with_retry(
-        object_storage_client: ObjectStorageClient,
-        namespace: str,
-        bucket_name: str,
-        object_name: str,
-        upload_id: str,
+    object_storage_client: ObjectStorageClient,
+    namespace: str,
+    bucket_name: str,
+    object_name: str,
+    upload_id: str,
 ):
     """Abort a multipart upload with retry mechanism"""
     try:
@@ -242,12 +246,12 @@ def abort_multipart_upload_with_retry(
 
 
 def delete_object_worker(
-        object_storage_client: ObjectStorageClient,
-        namespace: str,
-        bucket_name: str,
-        queue: Queue[ObjectVersionSummary],
-        progress_lock: Lock,
-        obj_pbar,
+    object_storage_client: ObjectStorageClient,
+    namespace: str,
+    bucket_name: str,
+    queue: Queue[ObjectVersionSummary],
+    progress_lock: Lock,
+    obj_pbar,
 ):
     """Worker function to delete objects from the queue"""
     while True:
@@ -282,16 +286,15 @@ def delete_object_worker(
 
 
 def clean_object_versions_by_prefix(
-        object_storage_client: ObjectStorageClient,
-        bucket_name: str,
-        namespace: str,
-        prefix: str,
-        num_workers: int = 1,
+    object_storage_client: ObjectStorageClient,
+    bucket_name: str,
+    namespace: str,
+    prefix: str,
+    num_workers: int = 1,
 ) -> bool:
     """Delete object versions whose names start with the given prefix."""
     print(
-        f"\nDeleting object versions in bucket '{bucket_name}' "
-        f"with prefix '{prefix}'"
+        f"\nDeleting object versions in bucket '{bucket_name}' with prefix '{prefix}'"
     )
 
     if not verify_bucket_exists(object_storage_client, namespace, bucket_name):
@@ -303,8 +306,7 @@ def clean_object_versions_by_prefix(
 
     if not objects:
         print(
-            f"No object versions found with prefix '{prefix}' "
-            f"in bucket '{bucket_name}'"
+            f"No object versions found with prefix '{prefix}' in bucket '{bucket_name}'"
         )
         return True
 
@@ -313,10 +315,10 @@ def clean_object_versions_by_prefix(
     print(f"Running with {num_workers} workers")
 
     with tqdm(
-            total=len(objects),
-            desc=f"Deleting object versions in {bucket_name}",
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
-            leave=False,
+        total=len(objects),
+        desc=f"Deleting object versions in {bucket_name}",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
+        leave=False,
     ) as obj_pbar:
         for item in objects:
             object_queue.put(item)
@@ -344,12 +346,12 @@ def clean_object_versions_by_prefix(
 
 
 def clean_up_bucket(
-        object_storage_client: ObjectStorageClient,
-        bucket_name: str,
-        namespace: str,
-        bucket_pbar=None,
-        delete_bucket=True,
-        num_workers=1,
+    object_storage_client: ObjectStorageClient,
+    bucket_name: str,
+    namespace: str,
+    bucket_pbar=None,
+    delete_bucket=True,
+    num_workers=1,
 ):
     """Delete all objects from a bucket and then delete the bucket itself if delete_bucket is True"""
     bucket_desc = f"Cleaning bucket: {bucket_name}"
@@ -379,10 +381,10 @@ def clean_up_bucket(
 
         # Create progress bar with percentage format
         with tqdm(
-                total=len(objects),
-                desc=f"Deleting objects in {bucket_name}",
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
-                leave=False,
+            total=len(objects),
+            desc=f"Deleting objects in {bucket_name}",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
+            leave=False,
         ) as obj_pbar:
             # Fill the queue with objects
             for item in objects:
@@ -415,10 +417,10 @@ def clean_up_bucket(
     pars = list_preauthenticated_requests(object_storage_client, namespace, bucket_name)
     if pars:
         with tqdm(
-                total=len(pars),
-                desc=f"Deleting preauthenticated requests in {bucket_name}",
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
-                leave=False,
+            total=len(pars),
+            desc=f"Deleting preauthenticated requests in {bucket_name}",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
+            leave=False,
         ) as par_pbar:
             for par in pars:
                 try:
@@ -442,10 +444,10 @@ def clean_up_bucket(
     )
     if multipart_uploads:
         with tqdm(
-                total=len(multipart_uploads),
-                desc=f"Aborting multipart uploads in {bucket_name}",
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
-                leave=False,
+            total=len(multipart_uploads),
+            desc=f"Aborting multipart uploads in {bucket_name}",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
+            leave=False,
         ) as upload_pbar:
             for upload in multipart_uploads:
                 try:
@@ -483,11 +485,11 @@ def clean_up_bucket(
 
 
 def clean_up_buckets_from_file(
-        oci_profile: str,
-        bucket_file: str,
-        namespace: str,
-        delete_bucket: bool = True,
-        num_workers: int = 1,
+    oci_profile: str,
+    bucket_file: str,
+    namespace: str,
+    delete_bucket: bool = True,
+    num_workers: int = 1,
 ):
     """Clean up multiple buckets listed in a file"""
     # Load OCI config from specified profile
@@ -528,8 +530,8 @@ def clean_up_buckets_from_file(
 
 @retry(stop=stop_after_attempt(4), wait=wait_fixed(10))
 def delete_container_image_with_retry(
-        artifacts_client: ArtifactsClient,
-        image_id: str,
+    artifacts_client: ArtifactsClient,
+    image_id: str,
 ):
     """Delete a container image with retry mechanism"""
     try:
@@ -540,10 +542,10 @@ def delete_container_image_with_retry(
 
 
 def delete_container_image_worker(
-        artifacts_client: ArtifactsClient,
-        queue: Queue[str],
-        progress_lock: Lock,
-        image_pbar,
+    artifacts_client: ArtifactsClient,
+    queue: Queue[str],
+    progress_lock: Lock,
+    image_pbar,
 ):
     """Worker function to delete container images from the queue"""
     while True:
@@ -570,9 +572,9 @@ def delete_container_image_worker(
 
 
 def clean_up_container_images_from_file(
-        oci_profile: str,
-        image_file: str,
-        num_workers: int = 1,
+    oci_profile: str,
+    image_file: str,
+    num_workers: int = 1,
 ):
     """Clean up container images from image OCIDs listed in a file"""
     config = oci.config.from_file(profile_name=oci_profile)
@@ -598,10 +600,10 @@ def clean_up_container_images_from_file(
     print(f"Running with {num_workers} workers")
 
     with tqdm(
-            total=len(image_ids),
-            desc="Deleting container images",
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
-            leave=False,
+        total=len(image_ids),
+        desc="Deleting container images",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
+        leave=False,
     ) as image_pbar:
         for image_id in image_ids:
             image_queue.put(image_id)
@@ -631,7 +633,7 @@ def cli():
 
 
 def list_log_analytics_entities(
-        log_analytics_client: LogAnalyticsClient, compartment_id: str, namespace: str
+    log_analytics_client: LogAnalyticsClient, compartment_id: str, namespace: str
 ) -> list[LogAnalyticsEntitySummary]:
     """List all log analytics entities in a compartment with pagination"""
     try:
@@ -662,7 +664,7 @@ def list_log_analytics_entities(
 
 @retry(stop=stop_after_attempt(4), wait=wait_fixed(10))
 def delete_log_analytics_entity_with_retry(
-        log_analytics_client: LogAnalyticsClient, namespace: str, entity_id: str
+    log_analytics_client: LogAnalyticsClient, namespace: str, entity_id: str
 ):
     """Delete a log analytics entity with retry mechanism"""
     try:
@@ -677,10 +679,10 @@ def delete_log_analytics_entity_with_retry(
 
 
 def clean_log_analytics_entities(
-        log_analytics_client: LogAnalyticsClient,
-        compartment_id: str,
-        namespace: str,
-        num_workers=1,
+    log_analytics_client: LogAnalyticsClient,
+    compartment_id: str,
+    namespace: str,
+    num_workers=1,
 ):
     """Delete all log analytics entities in a compartment"""
     # Get list of log analytics entities
@@ -701,10 +703,10 @@ def clean_log_analytics_entities(
 
     # Create progress bar with percentage format
     with tqdm(
-            total=len(entities),
-            desc="Deleting log analytics entities",
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
-            leave=False,
+        total=len(entities),
+        desc="Deleting log analytics entities",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
+        leave=False,
     ) as entity_pbar:
         # Fill the queue with entities
         for entity in entities:
@@ -734,11 +736,11 @@ def clean_log_analytics_entities(
 
 
 def delete_log_analytics_entity_worker(
-        log_analytics_client: LogAnalyticsClient,
-        namespace: str,
-        queue: Queue[LogAnalyticsEntitySummary],
-        progress_lock: Lock,
-        entity_pbar,
+    log_analytics_client: LogAnalyticsClient,
+    namespace: str,
+    queue: Queue[LogAnalyticsEntitySummary],
+    progress_lock: Lock,
+    entity_pbar,
 ):
     """Worker function to delete log analytics entities from the queue"""
     while True:
@@ -767,24 +769,60 @@ def delete_log_analytics_entity_worker(
         except Empty:
             break
 
+
 @cli.command(name="list-bucket-objects")
 @click.option(
     "--oci-profile", required=True, help="OCI profile to use from the config file"
 )
 @click.option("--bucket-name", required=True, help="Name of the OCI bucket to list")
 @click.option("--prefix", default=None, help="Filter objects by name prefix")
-def list_bucket_objects(oci_profile: str, bucket_name: str, prefix: str | None):
-    """List all object versions in an OCI bucket"""
+@click.option(
+    "--versions",
+    "should_list_versions",
+    is_flag=True,
+    help="List/count all object versions (not just current objects)",
+)
+@click.option(
+    "--count",
+    "is_count",
+    is_flag=True,
+    help="Count the number of objects instead of listing them",
+)
+def list_bucket_objects(
+    oci_profile: str,
+    bucket_name: str,
+    prefix: str | None,
+    should_list_versions: bool,
+    is_count: bool,
+):
+    """List or count objects (or all versions) in an OCI bucket."""
     config = oci.config.from_file(profile_name=oci_profile)
     object_storage_client: ObjectStorageClient = oci.object_storage.ObjectStorageClient(
         config
     )
     namespace: str = object_storage_client.get_namespace().data
 
-    objects = list_object_versions(object_storage_client, bucket_name, namespace, prefix)
+    if should_list_versions:
+        objects = list_object_versions(
+            object_storage_client, bucket_name, namespace, prefix
+        )
+        item_label = "object version(s)"
+    else:
+        objects = list_objects(object_storage_client, bucket_name, namespace, prefix)
+        item_label = "object(s)"
+
+    if is_count:
+        print(
+            f"Total number of {item_label} in bucket '{bucket_name}': {len(objects)}"
+        )
+        return
+
+    print(f"Found {len(objects)} {item_label} in bucket '{bucket_name}':")
     for obj in objects:
-        print(f"  {obj.name}  version={obj.version_id}  size={obj.size}")
-    print(f"Found {len(objects)} object version(s) in bucket '{bucket_name}':")
+        if should_list_versions:
+            print(f"  {obj.name}  version={obj.version_id}  size={obj.size}")
+        else:
+            print(f"  {obj.name}  size={obj.size}")
 
 
 @cli.command(name="clean-object-versions")
@@ -804,7 +842,7 @@ def list_bucket_objects(oci_profile: str, bucket_name: str, prefix: str | None):
     help="Number of worker threads for parallel processing",
 )
 def clean_object_versions(
-        oci_profile: str, bucket_name: str, prefix: str, workers: int
+    oci_profile: str, bucket_name: str, prefix: str, workers: int
 ):
     """Delete object versions in a bucket that match a name prefix."""
     config = oci.config.from_file(profile_name=oci_profile)
@@ -850,13 +888,13 @@ def clean_object_versions(
     help="Number of worker threads for parallel processing",
 )
 def clean_bucket(
-        oci_profile: str,
-        bucket_name: str,
-        bucket_file: str,
-        max_retries: str,
-        retry_delay: str,
-        delete_bucket: bool,
-        workers: int,
+    oci_profile: str,
+    bucket_name: str,
+    bucket_file: str,
+    max_retries: str,
+    retry_delay: str,
+    delete_bucket: bool,
+    workers: int,
 ):
     """Clean up OCI buckets by deleting their contents and optionally the buckets themselves"""
     if not bucket_name and not bucket_file:
@@ -887,7 +925,6 @@ def clean_bucket(
             delete_bucket=delete_bucket,
             num_workers=workers,
         )
-
 
 
 @cli.command(name="clean-logs-analytics")
@@ -945,9 +982,9 @@ def clean_logs_analytics(oci_profile: str, compartment_id: str, workers: int):
     help="Number of worker threads for parallel processing",
 )
 def clean_container_image(
-        oci_profile: str,
-        image_file: str,
-        workers: int,
+    oci_profile: str,
+    image_file: str,
+    workers: int,
 ):
     """Clean up OCI container images from file input (OCID only)"""
     clean_up_container_images_from_file(
