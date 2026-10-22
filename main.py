@@ -122,12 +122,6 @@ def clean_object_versions(
     help="File containing list of buckets to clean up (one per line)",
 )
 @click.option(
-    "--max-retries", type=int, default=4, help="Maximum number of retry attempts"
-)
-@click.option(
-    "--retry-delay", type=int, default=10, help="Delay between retries in seconds"
-)
-@click.option(
     "--delete-bucket/--no-delete-bucket",
     default=True,
     help="Delete the bucket after cleaning up its contents",
